@@ -1,54 +1,53 @@
-% filltext.sty — Dynamic Lorem Filler Package
-% Author: Giunio Osman-Mansour
-% Description: Generates placeholder text of fixed length using user input + Lorem Ipsum.
-% Requires: LuaLaTeX
-% Usage: \filltext{<target length>}{<user text>}
-%
-% Example:
-%    \filltext{300}{This is a sample introduction.}
-%
-\ProvidesPackage{filltext}[2025/10/22 v1.0 Dynamic Lorem Filler]
-
+\ProvidesPackage{filltext}[2025/10/22 v1.4 Dynamic Lorem filler]
 \RequirePackage{luacode}
-\RequirePackage{lipsum}
+\RequirePackage{xparse}
 
-\newcommand{\filltext}[2]{%
-  \directlua{
-    -- Target total length (in characters)
-    local target = tonumber("#1")
-    local usertext = [[#2]]
+% Define Lua function safely
+\begin{luacode*}
+function filltext_lua(mode, target, usertext)
+  local lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " ..
+                "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " ..
+                "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. "
 
-    -- Extract lorem ipsum text from the lipsum package (paragraph 1)
-    local lorem_text = [[\lipsum[1]]]
+  local function word_count(str)
+    local c = 0
+    for _ in string.gmatch(str, "%S+") do c = c + 1 end
+    return c
+  end
 
-    -- Remove TeX control sequences from the lorem text, leaving only plain text
-    local sanitized = string.gsub(lorem_text, "\\[%a@*%[%]%{%}0-9]+", "")
-    sanitized = string.gsub(sanitized, "%s+", " ")
-    sanitized = string.gsub(sanitized, "^%s+", "")
-    sanitized = string.gsub(sanitized, "%s+$", "")
-
-    -- Calculate user length
-    local used = string.len(usertext)
-
-    -- Check if padding is required
-    if used >= target then
-      tex.print(usertext)
+  if mode == "char" then
+    local user_len = string.len(usertext)
+    if user_len >= target then
+      tex.sprint(usertext)
     else
-      local needed = target - used
-
-      -- Word-safe padding: take enough words from lorem to cover roughly 'needed' chars
-      local words = {}
-      for w in string.gmatch(sanitized, "%S+") do
-        table.insert(words, w)
-      end
-      local filler = ""
-      local i = 1
-      while string.len(filler) < needed do
-        filler = filler .. " " .. (words[i] or words[(i-1)%#words + 1])
-        i = i + 1
-      end
-
-      tex.print(usertext .. filler)
+      local needed = target - user_len
+      local filled = usertext .. string.sub(lorem, 1, needed)
+      tex.sprint(filled)
     end
+
+  elseif mode == "word" then
+    local user_words = word_count(usertext)
+    if user_words >= target then
+      tex.sprint(usertext)
+    else
+      local needed = target - user_words
+      local words = {}
+      for w in string.gmatch(lorem, "%S+") do
+        table.insert(words, w)
+        if #words >= needed then break end
+      end
+      local filled = usertext .. " " .. table.concat(words, " ")
+      tex.sprint(filled)
+    end
+  else
+    tex.sprint("Invalid mode: " .. mode)
+  end
+end
+\end{luacode*}
+
+% Wrapper LaTeX command
+\NewDocumentCommand{\filltext}{O{char} m m}{%
+  \directlua{
+    filltext_lua("\unexpanded{#1}", tonumber("\unexpanded{#2}"), "\unexpanded{#3}")
   }%
 }
