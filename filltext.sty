@@ -1,0 +1,54 @@
+% filltext.sty — Dynamic Lorem Filler Package
+% Author: Giunio Osman-Mansour
+% Description: Generates placeholder text of fixed length using user input + Lorem Ipsum.
+% Requires: LuaLaTeX
+% Usage: \filltext{<target length>}{<user text>}
+%
+% Example:
+%    \filltext{300}{This is a sample introduction.}
+%
+\ProvidesPackage{filltext}[2025/10/22 v1.0 Dynamic Lorem Filler]
+
+\RequirePackage{luacode}
+\RequirePackage{lipsum}
+
+\newcommand{\filltext}[2]{%
+  \directlua{
+    -- Target total length (in characters)
+    local target = tonumber("#1")
+    local usertext = [[#2]]
+
+    -- Extract lorem ipsum text from the lipsum package (paragraph 1)
+    local lorem_text = [[\lipsum[1]]]
+
+    -- Remove TeX control sequences from the lorem text, leaving only plain text
+    local sanitized = string.gsub(lorem_text, "\\[%a@*%[%]%{%}0-9]+", "")
+    sanitized = string.gsub(sanitized, "%s+", " ")
+    sanitized = string.gsub(sanitized, "^%s+", "")
+    sanitized = string.gsub(sanitized, "%s+$", "")
+
+    -- Calculate user length
+    local used = string.len(usertext)
+
+    -- Check if padding is required
+    if used >= target then
+      tex.print(usertext)
+    else
+      local needed = target - used
+
+      -- Word-safe padding: take enough words from lorem to cover roughly 'needed' chars
+      local words = {}
+      for w in string.gmatch(sanitized, "%S+") do
+        table.insert(words, w)
+      end
+      local filler = ""
+      local i = 1
+      while string.len(filler) < needed do
+        filler = filler .. " " .. (words[i] or words[(i-1)%#words + 1])
+        i = i + 1
+      end
+
+      tex.print(usertext .. filler)
+    end
+  }%
+}
