@@ -1,4 +1,4 @@
-\ProvidesPackage{filltext}[2025/10/22 v1.4 Dynamic Lorem filler]
+\ProvidesPackage{filltext}[2025/10/22 v1.8 Dynamic Lorem filler with punctuation-safe lorem]
 \RequirePackage{luacode}
 \RequirePackage{xparse}
 
@@ -7,7 +7,10 @@
 function filltext_lua(mode, target, usertext)
   local lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " ..
                 "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " ..
-                "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. "
+                "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat"
+
+  
+  
 
   local function word_count(str)
     local c = 0
@@ -21,7 +24,7 @@ function filltext_lua(mode, target, usertext)
       tex.sprint(usertext)
     else
       local needed = target - user_len
-      local filled = usertext .. string.sub(lorem, 1, needed)
+      local filled = usertext .. " " .. string.sub(lorem, 1, needed)
       tex.sprint(filled)
     end
 
@@ -36,7 +39,11 @@ function filltext_lua(mode, target, usertext)
         table.insert(words, w)
         if #words >= needed then break end
       end
+	  -- If lorem text does not end with punctuation, append a period
       local filled = usertext .. " " .. table.concat(words, " ")
+	  if not string.match(filled, "[%.!?]$") then
+	    filled = filled .. "."
+	  end
       tex.sprint(filled)
     end
   else
